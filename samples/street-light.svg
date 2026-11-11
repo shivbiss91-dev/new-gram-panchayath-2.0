@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Citizen evidence photo showing unlit or damaged street light pole">
+  <defs>
+    <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#dusk)"/>
+  <!-- Moon & Evening Horizon -->
+  <circle cx="670" cy="90" r="28" fill="#fef08a" opacity="0.85"/>
+  <rect x="0" y="340" width="800" height="110" fill="#1e293b"/>
+  <!-- Leaning Pole -->
+  <line x1="350" y1="365" x2="430" y2="95" stroke="#94a3b8" stroke-width="16" stroke-linecap="round"/>
+  <line x1="430" y1="95" x2="520" y2="112" stroke="#cbd5e1" stroke-width="9" stroke-linecap="round"/>
+  <!-- Unlit Broken Fixture -->
+  <rect x="505" y="102" width="46" height="18" rx="6" fill="#475569" stroke="#ef4444" stroke-width="2"/>
+  <line x1="485" y1="88" x2="560" y2="136" stroke="#ef4444" stroke-width="3" stroke-dasharray="6 4"/>
+  <!-- Hanging Wire -->
+  <path d="M430 112 Q 490 215 620 190" fill="none" stroke="#f59e0b" stroke-width="4" stroke-dasharray="10 6"/>
+  <!-- Badge -->
+  <rect x="24" y="24" width="335" height="58" rx="12" fill="#020617" fill-opacity="0.85" stroke="#334155" stroke-width="1"/>
+  <circle cx="52" cy="53" r="10" fill="#f59e0b"/>
+  <text x="74" y="48" font-family="monospace" font-size="14" font-weight="bold" fill="#38bdf8">STREET LIGHTING EVIDENCE</text>
+  <text x="74" y="68" font-family="system-ui, sans-serif" font-size="13" fill="#e2e8f0">Outage / Tilted Pole Hazard</text>
+</svg>

@@ -5,6 +5,7 @@ import { uploadComplaintImage } from '../middleware/upload';
 import { generateComplaintNumber } from '../utils/complaintId';
 import { AuthenticatedRequest } from '../types';
 import { complaintCreateSchema, feedbackSchema } from '../validators/schemas';
+import { buildComplaintWhere } from '../utils/complaintFilters';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> 
     const {
       search,
       status,
+      priority,
       category,
       page = '1',
       limit = '10',
@@ -31,28 +33,10 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> 
     const take = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (pageNum - 1) * take;
 
-    const where: any = {
-      userId: req.user.id,
-    };
-
-    if (status && status !== 'ALL') {
-      where.status = status;
-    }
-
-    if (category && category !== 'ALL') {
-      where.category = category;
-    }
-
-    if (search && search.trim() !== '') {
-      const q = search.trim();
-      where.OR = [
-        { complaintNumber: { contains: q } },
-        { title: { contains: q } },
-        { description: { contains: q } },
-        { location: { contains: q } },
-        { category: { contains: q } },
-      ];
-    }
+    const where = buildComplaintWhere(
+      { search, status, priority, category },
+      { userId: req.user.id }
+    );
 
     const [total, complaints] = await Promise.all([
       prisma.complaint.count({ where }),
@@ -105,7 +89,7 @@ router.post(
         return;
       }
 
-      const { category, title, description, location, latitude, longitude } = parsed.data;
+      const { category, title, description, location, priority, latitude, longitude } = parsed.data;
 
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
       const complaintNumber = await generateComplaintNumber();
@@ -122,6 +106,7 @@ router.post(
             latitude: latitude !== undefined ? latitude : null,
             longitude: longitude !== undefined ? longitude : null,
             imageUrl,
+            priority,
             status: 'SUBMITTED',
           },
         });

@@ -26,9 +26,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     );
   }
 
-  // If not logged in, redirect to login
+  // If not logged in, redirect to appropriate login preserving path + query string
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const loginPath = requiredRole === 'ADMIN' ? '/admin/login' : '/login';
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   // Role validation

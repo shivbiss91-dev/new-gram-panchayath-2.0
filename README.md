@@ -2,14 +2,14 @@
 
 An official civic-tech web application connecting citizens and Gram Panchayat administration for streamlined reporting, tracking, and resolution of civic complaints.
 
-[![Deploy to GitHub Pages](https://github.com/shivbiss91-dev/gram-panchayat/actions/workflows/deploy.yml/badge.svg)](https://github.com/shivbiss91-dev/gram-panchayat/actions/workflows/deploy.yml)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-00C8FF?style=flat&logo=github)](https://shivbiss91-dev.github.io/gram-panchayat/)
+[![Deploy to GitHub Pages](https://github.com/shivbiss91-dev/new-gram-panchayath-2.0/actions/workflows/deploy.yml/badge.svg)](https://github.com/shivbiss91-dev/new-gram-panchayath-2.0/actions/workflows/deploy.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-00C8FF?style=flat&logo=github)](https://shivbiss91-dev.github.io/new-gram-panchayath-2.0/)
 
 ---
 
 ## 🌐 Live Website
 
-- **GitHub Pages Frontend**: [https://shivbiss91-dev.github.io/gram-panchayat/](https://shivbiss91-dev.github.io/gram-panchayat/)
+- **GitHub Pages Frontend**: [https://shivbiss91-dev.github.io/new-gram-panchayath-2.0/](https://shivbiss91-dev.github.io/new-gram-panchayath-2.0/)
 - **Local Dev URL**: `http://localhost:5173/`
 
 ---
@@ -47,8 +47,8 @@ An official civic-tech web application connecting citizens and Gram Panchayat ad
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/shivbiss91-dev/gram-panchayat.git
-cd gram-panchayat
+git clone https://github.com/shivbiss91-dev/new-gram-panchayath-2.0.git
+cd new-gram-panchayath-2.0
 
 # Install root dependencies
 npm install

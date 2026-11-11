@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PriorityBadge } from '../../components/common/PriorityBadge';
 import { Timeline } from '../../components/common/Timeline';
 
 export const LandingPage: React.FC = () => {
@@ -364,10 +365,11 @@ export const LandingPage: React.FC = () => {
             <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 sm:p-8 text-slate-900 border border-slate-200 shadow-2xl animate-in fade-in duration-200">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
                 <div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="font-mono text-base font-extrabold text-cyber-blue">
                       {trackedComplaint.complaintNumber}
                     </span>
+                    <PriorityBadge priority={trackedComplaint.priority} size="md" showPriorityWord />
                     <StatusBadge status={trackedComplaint.status} size="md" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mt-2">

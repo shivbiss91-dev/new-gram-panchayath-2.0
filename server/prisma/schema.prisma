@@ -36,6 +36,7 @@ model Complaint {
   latitude           Float?
   longitude          Float?
   imageUrl           String?
+  priority           String                  @default("MEDIUM") // HIGH, MEDIUM, LOW
   status             String                  @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, ASSIGNED, IN_PROGRESS, RESOLVED, REJECTED
   assignedDepartment String?
   assignedStaff      String?
@@ -50,6 +51,7 @@ model Complaint {
 
   @@index([userId])
   @@index([status])
+  @@index([priority])
   @@index([category])
   @@index([submittedAt])
   @@map("complaints")

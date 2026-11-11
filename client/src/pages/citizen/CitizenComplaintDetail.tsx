@@ -19,7 +19,9 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PriorityBadge } from '../../components/common/PriorityBadge';
 import { CategoryBadge } from '../../components/common/CategoryBadge';
+import { resolveComplaintImageUrl } from '../../utils/media';
 import { Timeline } from '../../components/common/Timeline';
 import { DetailSkeleton } from '../../components/common/SkeletonLoader';
 
@@ -130,6 +132,7 @@ export const CitizenComplaintDetail: React.FC = () => {
               <span className="font-mono text-base font-extrabold text-cyber-blue bg-cyan-50 px-3 py-1 rounded-xl border border-cyan-100">
                 {complaint.complaintNumber}
               </span>
+              <PriorityBadge priority={complaint.priority} size="md" showPriorityWord />
               <StatusBadge status={complaint.status} size="md" />
               <CategoryBadge category={complaint.category} />
             </div>
@@ -207,7 +210,7 @@ export const CitizenComplaintDetail: React.FC = () => {
             </h3>
             <div className="rounded-2xl overflow-hidden border border-slate-200 max-w-md bg-slate-100 shadow-sm">
               <img
-                src={complaint.imageUrl}
+                src={resolveComplaintImageUrl(complaint.imageUrl) || ''}
                 alt="Complaint evidence on-ground"
                 className="w-full h-auto object-cover max-h-96"
               />

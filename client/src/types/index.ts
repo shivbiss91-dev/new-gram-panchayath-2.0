@@ -8,6 +8,8 @@ export type ComplaintStatus =
   | 'RESOLVED'
   | 'REJECTED';
 
+export type ComplaintPriority = 'HIGH' | 'MEDIUM' | 'LOW';
+
 export type ComplaintCategory =
   | 'Road Issues'
   | 'Street Light Problems'
@@ -58,6 +60,7 @@ export interface Complaint {
   latitude?: number | null;
   longitude?: number | null;
   imageUrl?: string | null;
+  priority: ComplaintPriority;
   status: ComplaintStatus;
   assignedDepartment?: string | null;
   assignedStaff?: string | null;
@@ -96,13 +99,24 @@ export interface PortalStats {
 
 export interface AdminDashboardData {
   totalComplaints: number;
+  submitted: number;
+  underReview: number;
   pendingReview: number;
   assigned: number;
   inProgress: number;
+  activeComplaints: number;
   resolved: number;
   rejected: number;
   totalCitizens: number;
   resolutionRate: number;
+  priorityCounts: {
+    HIGH: number;
+    MEDIUM: number;
+    LOW: number;
+  };
+  highPriorityPending: number;
+  mediumPriorityPending: number;
+  lowPriorityPending: number;
   recentComplaints: Complaint[];
 }
 

@@ -16,7 +16,8 @@ export const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  const from = (location.state as any)?.from?.pathname;
+  const fromState = (location.state as any)?.from;
+  const from = fromState ? `${fromState.pathname || ''}${fromState.search || ''}` : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

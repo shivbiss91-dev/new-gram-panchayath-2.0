@@ -4,9 +4,12 @@ import { authenticate, requireRole } from '../middleware/auth';
 import { AuthenticatedRequest, ComplaintStatus } from '../types';
 import {
   updateStatusSchema,
+  updatePrioritySchema,
   assignComplaintSchema,
   COMPLAINT_STATUSES,
+  COMPLAINT_PRIORITIES,
 } from '../validators/schemas';
+import { buildComplaintWhere } from '../utils/complaintFilters';
 
 const router = Router();
 
@@ -25,6 +28,12 @@ router.get('/dashboard', async (_req: AuthenticatedRequest, res: Response): Prom
       inProgress,
       resolved,
       rejected,
+      highPriority,
+      mediumPriority,
+      lowPriority,
+      highPriorityPending,
+      mediumPriorityPending,
+      lowPriorityPending,
       recentComplaints,
       totalCitizens,
     ] = await Promise.all([
@@ -35,6 +44,18 @@ router.get('/dashboard', async (_req: AuthenticatedRequest, res: Response): Prom
       prisma.complaint.count({ where: { status: 'IN_PROGRESS' } }),
       prisma.complaint.count({ where: { status: 'RESOLVED' } }),
       prisma.complaint.count({ where: { status: 'REJECTED' } }),
+      prisma.complaint.count({ where: { priority: 'HIGH' } }),
+      prisma.complaint.count({ where: { priority: 'MEDIUM' } }),
+      prisma.complaint.count({ where: { priority: 'LOW' } }),
+      prisma.complaint.count({
+        where: { priority: 'HIGH', status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
+      }),
+      prisma.complaint.count({
+        where: { priority: 'MEDIUM', status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
+      }),
+      prisma.complaint.count({
+        where: { priority: 'LOW', status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } },
+      }),
       prisma.complaint.findMany({
         take: 6,
         orderBy: { submittedAt: 'desc' },
@@ -46,19 +67,31 @@ router.get('/dashboard', async (_req: AuthenticatedRequest, res: Response): Prom
     ]);
 
     const pendingReview = submitted + underReview;
+    const activeComplaints = assigned + inProgress;
     const resolutionRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
     res.json({
       success: true,
       data: {
         totalComplaints: total,
+        submitted,
+        underReview,
         pendingReview,
         assigned,
         inProgress,
+        activeComplaints,
         resolved,
         rejected,
         totalCitizens,
         resolutionRate,
+        priorityCounts: {
+          HIGH: highPriority,
+          MEDIUM: mediumPriority,
+          LOW: lowPriority,
+        },
+        highPriorityPending,
+        mediumPriorityPending,
+        lowPriorityPending,
         recentComplaints,
       },
     });
@@ -74,6 +107,7 @@ router.get('/complaints', async (req: AuthenticatedRequest, res: Response): Prom
     const {
       search,
       status,
+      priority,
       category,
       department,
       dateRange,
@@ -85,47 +119,14 @@ router.get('/complaints', async (req: AuthenticatedRequest, res: Response): Prom
     const take = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (pageNum - 1) * take;
 
-    const where: any = {};
-
-    if (status && status !== 'ALL') {
-      where.status = status;
-    }
-
-    if (category && category !== 'ALL') {
-      where.category = category;
-    }
-
-    if (department && department !== 'ALL') {
-      where.assignedDepartment = department;
-    }
-
-    // Date range filter
-    if (dateRange && dateRange !== 'ALL') {
-      const now = new Date();
-      let pastDate = new Date();
-      if (dateRange === '7d') pastDate.setDate(now.getDate() - 7);
-      else if (dateRange === '30d') pastDate.setDate(now.getDate() - 30);
-      else if (dateRange === '90d') pastDate.setDate(now.getDate() - 90);
-      else if (dateRange === '1y') pastDate.setFullYear(now.getFullYear() - 1);
-
-      where.submittedAt = { gte: pastDate };
-    }
-
-    // Search query
-    if (search && search.trim() !== '') {
-      const q = search.trim();
-      where.OR = [
-        { complaintNumber: { contains: q } },
-        { title: { contains: q } },
-        { description: { contains: q } },
-        { location: { contains: q } },
-        { category: { contains: q } },
-        { assignedDepartment: { contains: q } },
-        { assignedStaff: { contains: q } },
-        { user: { name: { contains: q } } },
-        { user: { mobile: { contains: q } } },
-      ];
-    }
+    const where = buildComplaintWhere({
+      search,
+      status,
+      priority,
+      category,
+      department,
+      dateRange,
+    });
 
     const [total, complaints] = await Promise.all([
       prisma.complaint.count({ where }),
@@ -196,15 +197,78 @@ router.get('/complaints/:id', async (req: AuthenticatedRequest, res: Response): 
 function isValidTransition(current: string, target: string): boolean {
   if (current === target) return true;
   const validTransitions: Record<string, string[]> = {
-    SUBMITTED: ['UNDER_REVIEW', 'REJECTED'],
-    UNDER_REVIEW: ['ASSIGNED', 'IN_PROGRESS', 'REJECTED'],
-    ASSIGNED: ['IN_PROGRESS', 'RESOLVED', 'REJECTED'],
-    IN_PROGRESS: ['RESOLVED', 'REJECTED'],
+    SUBMITTED: ['UNDER_REVIEW', 'ASSIGNED', 'IN_PROGRESS', 'REJECTED'],
+    UNDER_REVIEW: ['ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'],
+    ASSIGNED: ['UNDER_REVIEW', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'],
+    IN_PROGRESS: ['ASSIGNED', 'RESOLVED', 'REJECTED'],
     RESOLVED: ['UNDER_REVIEW', 'IN_PROGRESS'], // allow reopening if needed
     REJECTED: ['UNDER_REVIEW', 'SUBMITTED'],
   };
   return validTransitions[current]?.includes(target) ?? false;
 }
+
+// PATCH /api/admin/complaints/:id/priority - Update complaint priority
+router.patch('/complaints/:id/priority', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const parsed = updatePrioritySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        message: parsed.error.errors[0]?.message || 'Invalid priority value',
+      });
+      return;
+    }
+
+    const { priority: targetPriority, remarks } = parsed.data;
+
+    const complaint = await prisma.complaint.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!complaint) {
+      res.status(404).json({ success: false, message: 'Complaint not found.' });
+      return;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const modified = await tx.complaint.update({
+        where: { id: complaint.id },
+        data: { priority: targetPriority },
+      });
+
+      await tx.complaintStatusHistory.create({
+        data: {
+          complaintId: complaint.id,
+          status: complaint.status,
+          remarks: `Priority updated from ${complaint.priority} to ${targetPriority}.${remarks ? ` ${remarks}` : ''}`,
+          changedBy: req.user?.name || 'Administrator',
+        },
+      });
+
+      if (complaint.priority !== targetPriority) {
+        await tx.notification.create({
+          data: {
+            userId: complaint.userId,
+            complaintId: complaint.id,
+            title: `Complaint Priority Updated: ${targetPriority}`,
+            message: `Your complaint (${complaint.complaintNumber}) priority was updated to ${targetPriority}.${remarks ? ` Remarks: ${remarks}` : ''}`,
+          },
+        });
+      }
+
+      return modified;
+    });
+
+    res.json({
+      success: true,
+      message: `Priority updated to ${targetPriority}.`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error('Update complaint priority error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update complaint priority.' });
+  }
+});
 
 // PATCH /api/admin/complaints/:id/status - Update complaint status & add remark
 router.patch('/complaints/:id/status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -218,7 +282,7 @@ router.patch('/complaints/:id/status', async (req: AuthenticatedRequest, res: Re
       return;
     }
 
-    const { status: targetStatus, remarks } = parsed.data;
+    const { status: targetStatus, priority: targetPriority, remarks } = parsed.data;
 
     const complaint = await prisma.complaint.findUnique({
       where: { id: req.params.id },
@@ -246,16 +310,22 @@ router.patch('/complaints/:id/status', async (req: AuthenticatedRequest, res: Re
         where: { id: complaint.id },
         data: {
           status: targetStatus,
+          ...(targetPriority ? { priority: targetPriority } : {}),
           resolvedAt,
         },
       });
+
+      const priorityNote =
+        targetPriority && targetPriority !== complaint.priority
+          ? ` Priority changed to ${targetPriority}.`
+          : '';
 
       // Status history entry
       await tx.complaintStatusHistory.create({
         data: {
           complaintId: complaint.id,
           status: targetStatus,
-          remarks: remarks || `Status updated to ${targetStatus} by Administrator.`,
+          remarks: `${remarks || `Status updated to ${targetStatus} by Administrator.`}${priorityNote}`.trim(),
           changedBy: req.user?.name || 'Administrator',
         },
       });
@@ -296,7 +366,7 @@ router.patch('/complaints/:id/assign', async (req: AuthenticatedRequest, res: Re
       return;
     }
 
-    const { assignedDepartment, assignedStaff, remarks } = parsed.data;
+    const { assignedDepartment, assignedStaff, priority: targetPriority, remarks } = parsed.data;
 
     const complaint = await prisma.complaint.findUnique({
       where: { id: req.params.id },
@@ -319,15 +389,21 @@ router.patch('/complaints/:id/assign', async (req: AuthenticatedRequest, res: Re
         data: {
           assignedDepartment,
           assignedStaff,
+          ...(targetPriority ? { priority: targetPriority } : {}),
           status: newStatus,
         },
       });
+
+      const priorityNote =
+        targetPriority && targetPriority !== complaint.priority
+          ? ` Priority set to ${targetPriority}.`
+          : '';
 
       await tx.complaintStatusHistory.create({
         data: {
           complaintId: complaint.id,
           status: newStatus,
-          remarks: `Assigned to ${assignedDepartment} (${assignedStaff}). ${remarks || ''}`.trim(),
+          remarks: `Assigned to ${assignedDepartment} (${assignedStaff}).${priorityNote} ${remarks || ''}`.trim(),
           changedBy: req.user?.name || 'Administrator',
         },
       });
@@ -444,6 +520,7 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response): Promi
         id: true,
         category: true,
         status: true,
+        priority: true,
         submittedAt: true,
         resolvedAt: true,
       },
@@ -485,7 +562,21 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response): Promi
       value,
     }));
 
-    // 3. Trend over time (grouped by date)
+    // 3. Priority Distribution
+    const priorityCounts: Record<string, number> = {};
+    COMPLAINT_PRIORITIES.forEach((p) => (priorityCounts[p] = 0));
+    complaints.forEach((c) => {
+      const p = COMPLAINT_PRIORITIES.includes(c.priority as any) ? c.priority : 'MEDIUM';
+      priorityCounts[p] = (priorityCounts[p] || 0) + 1;
+    });
+
+    const priorityData = COMPLAINT_PRIORITIES.map((p) => ({
+      priority: p,
+      name: p.charAt(0) + p.slice(1).toLowerCase(),
+      count: priorityCounts[p] || 0,
+    }));
+
+    // 4. Trend over time (grouped by date)
     const trendMap: Record<string, { date: string; submitted: number; resolved: number }> = {};
 
     complaints.forEach((c) => {
@@ -506,6 +597,7 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response): Promi
       data: {
         categoryData,
         statusData,
+        priorityData,
         trendData,
         totalInRange: complaints.length,
       },
@@ -519,36 +611,30 @@ router.get('/analytics', async (req: AuthenticatedRequest, res: Response): Promi
 // GET /api/admin/reports - Performance metrics & resolution time
 router.get('/reports', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { category, dateRange } = req.query as Record<string, string>;
-    const where: any = {};
+    const { category, priority, dateRange } = req.query as Record<string, string>;
+    const where = buildComplaintWhere({ category, priority, dateRange });
 
-    if (category && category !== 'ALL') {
-      where.category = category;
-    }
-
-    if (dateRange && dateRange !== 'ALL') {
-      const now = new Date();
-      let pastDate = new Date();
-      if (dateRange === '7d') pastDate.setDate(now.getDate() - 7);
-      else if (dateRange === '30d') pastDate.setDate(now.getDate() - 30);
-      else if (dateRange === '90d') pastDate.setDate(now.getDate() - 90);
-      else if (dateRange === '1y') pastDate.setFullYear(now.getFullYear() - 1);
-      where.submittedAt = { gte: pastDate };
-    }
-
-    const [total, resolved, inProgress, pending] = await Promise.all([
+    const [total, resolved, assigned, inProgress, pending, highPriority, mediumPriority, lowPriority] = await Promise.all([
       prisma.complaint.count({ where }),
-      prisma.complaint.count({ where: { ...where, status: 'RESOLVED' } }),
-      prisma.complaint.count({ where: { ...where, status: 'IN_PROGRESS' } }),
-      prisma.complaint.count({ where: { ...where, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }),
+      prisma.complaint.count({ where: { AND: [where, { status: 'RESOLVED' }] } }),
+      prisma.complaint.count({ where: { AND: [where, { status: 'ASSIGNED' }] } }),
+      prisma.complaint.count({ where: { AND: [where, { status: 'IN_PROGRESS' }] } }),
+      prisma.complaint.count({ where: { AND: [where, { status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } }] } }),
+      prisma.complaint.count({ where: { AND: [where, { priority: 'HIGH' }] } }),
+      prisma.complaint.count({ where: { AND: [where, { priority: 'MEDIUM' }] } }),
+      prisma.complaint.count({ where: { AND: [where, { priority: 'LOW' }] } }),
     ]);
 
     // Average resolution time for resolved complaints
     const resolvedComplaints = await prisma.complaint.findMany({
       where: {
-        ...where,
-        status: 'RESOLVED',
-        resolvedAt: { not: null },
+        AND: [
+          where,
+          {
+            status: 'RESOLVED',
+            resolvedAt: { not: null },
+          },
+        ],
       },
       select: {
         submittedAt: true,
@@ -574,8 +660,14 @@ router.get('/reports', async (req: AuthenticatedRequest, res: Response): Promise
       data: {
         total,
         resolved,
+        assigned,
         inProgress,
         pending,
+        priorityCounts: {
+          HIGH: highPriority,
+          MEDIUM: mediumPriority,
+          LOW: lowPriority,
+        },
         resolutionRate,
         avgResolutionDays,
       },
@@ -589,21 +681,15 @@ router.get('/reports', async (req: AuthenticatedRequest, res: Response): Promise
 // GET /api/admin/reports/export - Export complaints to CSV
 router.get('/reports/export', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { category, status, dateRange } = req.query as Record<string, string>;
-    const where: any = {};
-
-    if (category && category !== 'ALL') where.category = category;
-    if (status && status !== 'ALL') where.status = status;
-
-    if (dateRange && dateRange !== 'ALL') {
-      const now = new Date();
-      let pastDate = new Date();
-      if (dateRange === '7d') pastDate.setDate(now.getDate() - 7);
-      else if (dateRange === '30d') pastDate.setDate(now.getDate() - 30);
-      else if (dateRange === '90d') pastDate.setDate(now.getDate() - 90);
-      else if (dateRange === '1y') pastDate.setFullYear(now.getFullYear() - 1);
-      where.submittedAt = { gte: pastDate };
-    }
+    const { category, status, priority, department, search, dateRange } = req.query as Record<string, string>;
+    const where = buildComplaintWhere({
+      category,
+      status,
+      priority,
+      department,
+      search,
+      dateRange,
+    });
 
     const complaints = await prisma.complaint.findMany({
       where,
@@ -622,6 +708,7 @@ router.get('/reports/export', async (req: AuthenticatedRequest, res: Response): 
 
     const headers = [
       'Complaint ID',
+      'Priority',
       'Category',
       'Title',
       'Description',
@@ -647,6 +734,7 @@ router.get('/reports/export', async (req: AuthenticatedRequest, res: Response): 
 
       return [
         escapeCsv(c.complaintNumber),
+        escapeCsv(c.priority || 'MEDIUM'),
         escapeCsv(c.category),
         escapeCsv(c.title),
         escapeCsv(c.description),

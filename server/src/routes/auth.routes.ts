@@ -210,13 +210,16 @@ router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
+    const profilePayload = {
+      ...user,
+      unreadNotificationsCount: user._count.notifications,
+      totalComplaintsCount: user._count.complaints,
+    };
+
     res.json({
       success: true,
-      user: {
-        ...user,
-        unreadNotificationsCount: user._count.notifications,
-        totalComplaintsCount: user._count.complaints,
-      },
+      data: profilePayload,
+      user: profilePayload,
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -290,6 +293,7 @@ router.patch('/profile', authenticate, async (req: AuthenticatedRequest, res: Re
     res.json({
       success: true,
       message: 'Profile updated successfully.',
+      data: updated,
       user: updated,
     });
   } catch (error) {

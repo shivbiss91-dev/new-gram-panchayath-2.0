@@ -10,6 +10,8 @@ export type ComplaintStatus =
   | 'RESOLVED'
   | 'REJECTED';
 
+export type ComplaintPriority = 'HIGH' | 'MEDIUM' | 'LOW';
+
 export type ComplaintCategory =
   | 'Road Issues'
   | 'Street Light Problems'

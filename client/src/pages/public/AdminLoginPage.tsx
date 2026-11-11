@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { ShieldAlert, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 
 export const AdminLoginPage: React.FC = () => {
   const { login } = useAuth();
   const { success, error } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const fromState = (location.state as any)?.from;
+  const from = fromState ? `${fromState.pathname || ''}${fromState.search || ''}` : undefined;
 
   const [identifier, setIdentifier] = useState('admin@grampanchayat.gov.in');
   const [password, setPassword] = useState('Admin@123');
@@ -25,7 +29,7 @@ export const AdminLoginPage: React.FC = () => {
         return;
       }
       success(`Welcome Officer, ${user.name}!`);
-      navigate('/admin/dashboard', { replace: true });
+      navigate(from && from.startsWith('/admin') ? from : '/admin/dashboard', { replace: true });
     } catch (err: any) {
       error(err.message || 'Invalid administrative credentials.');
     } finally {

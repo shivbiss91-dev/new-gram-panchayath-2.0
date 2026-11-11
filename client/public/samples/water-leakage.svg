@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Citizen evidence photo showing leaking water supply pipeline">
+  <defs>
+    <linearGradient id="bgWater" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bgWater)"/>
+  <!-- Ground & Trench -->
+  <rect x="0" y="230" width="800" height="220" fill="#d6d3d1"/>
+  <ellipse cx="420" cy="335" rx="230" ry="62" fill="#38bdf8" opacity="0.35"/>
+  <ellipse cx="415" cy="340" rx="170" ry="40" fill="#0284c7" opacity="0.45"/>
+  <!-- Underground Main Pipe Exposed -->
+  <rect x="90" y="295" width="620" height="40" rx="8" fill="#475569" stroke="#1e293b" stroke-width="3"/>
+  <rect x="370" y="287" width="42" height="56" rx="4" fill="#64748b" stroke="#0f172a" stroke-width="3"/>
+  <!-- Water Burst / Spray -->
+  <path d="M390 290 C360 225, 320 205, 290 225 M392 290 C385 180, 415 155, 445 195 M395 290 C435 220, 480 215, 515 245" fill="none" stroke="#0ea5e9" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="290" cy="235" r="7" fill="#38bdf8"/>
+  <circle cx="450" cy="205" r="8" fill="#38bdf8"/>
+  <circle cx="520" cy="252" r="6" fill="#0ea5e9"/>
+  <!-- Badge -->
+  <rect x="24" y="24" width="320" height="58" rx="12" fill="#0f172a" fill-opacity="0.82"/>
+  <circle cx="52" cy="53" r="10" fill="#0ea5e9"/>
+  <text x="74" y="48" font-family="monospace" font-size="14" font-weight="bold" fill="#38bdf8">WATER SUPPLY EVIDENCE</text>
+  <text x="74" y="68" font-family="system-ui, sans-serif" font-size="13" fill="#e2e8f0">Feeder Pipeline Joint Leakage</text>
+</svg>

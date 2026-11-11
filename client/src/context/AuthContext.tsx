@@ -33,8 +33,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const res = await authApi.getProfile();
-      if (res.success && res.data) {
-        setUser(res.data);
+      const profileUser = res.data || res.user;
+      if (res.success && profileUser) {
+        setUser(profileUser);
       } else {
         localStorage.removeItem('token');
         setUser(null);
@@ -88,8 +89,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = async (data: { name: string; email: string; mobile: string; address: string }) => {
     const res = await authApi.updateProfile(data);
-    if (res.data) {
-      setUser((prev) => (prev ? { ...prev, ...res.data } : res.data!));
+    const updatedUser = res.data || res.user;
+    if (updatedUser) {
+      setUser((prev) => (prev ? { ...prev, ...updatedUser } : updatedUser));
     }
   };
 

@@ -19,6 +19,8 @@ export const COMPLAINT_STATUSES = [
   'REJECTED',
 ] as const;
 
+export const COMPLAINT_PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'] as const;
+
 export const DEPARTMENTS = [
   'Road Maintenance',
   'Water Supply',
@@ -42,6 +44,16 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const priorityField = z.preprocess(
+  (val) => {
+    if (val === '' || val === undefined || val === null) return undefined;
+    return typeof val === 'string' ? val.trim().toUpperCase() : val;
+  },
+  z.enum(COMPLAINT_PRIORITIES, {
+    errorMap: () => ({ message: 'Priority must be HIGH, MEDIUM, or LOW' }),
+  })
+);
+
 export const complaintCreateSchema = z.object({
   category: z.enum(COMPLAINT_CATEGORIES, {
     errorMap: () => ({ message: 'Please select a valid complaint category' }),
@@ -49,6 +61,7 @@ export const complaintCreateSchema = z.object({
   title: z.string().trim().min(5, 'Title must be at least 5 characters').max(150, 'Title cannot exceed 150 characters'),
   description: z.string().trim().min(10, 'Description must be at least 10 characters').max(2000, 'Description cannot exceed 2000 characters'),
   location: z.string().trim().min(4, 'Location must be at least 4 characters').max(250, 'Location cannot exceed 250 characters'),
+  priority: priorityField.default('MEDIUM'),
   latitude: z.preprocess((val) => (val === '' || val === undefined ? undefined : Number(val)), z.number().optional()),
   longitude: z.preprocess((val) => (val === '' || val === undefined ? undefined : Number(val)), z.number().optional()),
 });
@@ -57,12 +70,24 @@ export const updateStatusSchema = z.object({
   status: z.enum(COMPLAINT_STATUSES, {
     errorMap: () => ({ message: 'Invalid complaint status' }),
   }),
+  priority: priorityField.optional(),
+  remarks: z.string().trim().max(500, 'Remarks cannot exceed 500 characters').optional(),
+});
+
+export const updatePrioritySchema = z.object({
+  priority: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim().toUpperCase() : val),
+    z.enum(COMPLAINT_PRIORITIES, {
+      errorMap: () => ({ message: 'Priority must be HIGH, MEDIUM, or LOW' }),
+    })
+  ),
   remarks: z.string().trim().max(500, 'Remarks cannot exceed 500 characters').optional(),
 });
 
 export const assignComplaintSchema = z.object({
   assignedDepartment: z.string().trim().min(2, 'Department is required').max(100),
   assignedStaff: z.string().trim().min(2, 'Staff name is required').max(100),
+  priority: priorityField.optional(),
   remarks: z.string().trim().max(500).optional(),
 });
 

@@ -4,6 +4,7 @@ import { Complaint } from '../../types';
 import { Search, MapPin, Calendar, CheckCircle, AlertCircle, Eye } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PriorityBadge } from '../../components/common/PriorityBadge';
 import { CategoryBadge } from '../../components/common/CategoryBadge';
 import { Timeline } from '../../components/common/Timeline';
 import { Link } from 'react-router-dom';
@@ -83,10 +84,11 @@ export const CitizenTrackPage: React.FC = () => {
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-card space-y-6 animate-in fade-in duration-150">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-5">
             <div>
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex flex-wrap items-center gap-3 mb-2">
                 <span className="font-mono text-base font-extrabold text-cyber-blue bg-cyan-50 px-3 py-1 rounded-xl border border-cyan-100">
                   {complaint.complaintNumber}
                 </span>
+                <PriorityBadge priority={complaint.priority} size="md" showPriorityWord />
                 <StatusBadge status={complaint.status} size="md" />
                 <CategoryBadge category={complaint.category} />
               </div>

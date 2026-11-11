@@ -1,6 +1,7 @@
 import {
   ApiResponse,
   Complaint,
+  ComplaintPriority,
   NotificationItem,
   PortalStats,
   AdminDashboardData,
@@ -48,41 +49,42 @@ async function request<T>(
     headers.set('Content-Type', 'application/json');
   }
 
+  let res: globalThis.Response;
   try {
-    const res = await fetch(`${API_BASE}${endpoint}`, {
+    res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
     });
-
-    const contentType = res.headers.get('content-type') || '';
-
-    // If server returned HTML (e.g. static host 404), do not attempt res.json()
-    if (!contentType.includes('application/json')) {
-      if (mockFallback) {
-        console.warn(`[Gram Panchayat Demo] Server returned non-JSON for ${endpoint}. Using interactive demo store.`);
-        return await mockFallback();
-      }
-      throw new Error(`Server returned HTML response (${res.status}). Ensure the backend server is running.`);
-    }
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      if (res.status === 401 && !endpoint.includes('/auth/login')) {
-        localStorage.removeItem('token');
-      }
-      throw new Error(data.message || `Request failed with status ${res.status}`);
-    }
-
-    return data;
-  } catch (error: any) {
-    // If backend is offline or unreachable, smoothly fallback to mock store
+  } catch (networkError: any) {
+    // Backend is offline or unreachable -> smoothly fallback to mock store if provided
     if (mockFallback) {
-      console.warn(`[Gram Panchayat Demo] API unavailable for ${endpoint} (${error.message}). Using demo store.`);
+      console.warn(`[Gram Panchayat Demo] API unreachable for ${endpoint} (${networkError.message}). Using demo store.`);
       return await mockFallback();
     }
-    throw new Error(error.message || 'Network request failed. Please check your connection.');
+    throw new Error(networkError.message || 'Network request failed. Please check your connection.');
   }
+
+  const contentType = res.headers.get('content-type') || '';
+
+  // If server returned non-JSON (e.g. static host HTML 404 or proxy ECONNREFUSED 500), fall back to mock store
+  if (!contentType.includes('application/json')) {
+    if (mockFallback) {
+      console.warn(`[Gram Panchayat Demo] Server returned non-JSON for ${endpoint}. Using interactive demo store.`);
+      return await mockFallback();
+    }
+    throw new Error(`Server returned unexpected response (${res.status}). Ensure the backend server is running.`);
+  }
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    if (res.status === 401 && !endpoint.includes('/auth/login')) {
+      localStorage.removeItem('token');
+    }
+    throw new Error(data.message || `Request failed with status ${res.status}`);
+  }
+
+  return data;
 }
 
 // 1. Auth API
@@ -159,6 +161,7 @@ export const complaintApi = {
     params: {
       search?: string;
       status?: string;
+      priority?: string;
       category?: string;
       page?: number;
       limit?: number;
@@ -167,6 +170,7 @@ export const complaintApi = {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.status) query.set('status', params.status);
+    if (params.priority) query.set('priority', params.priority);
     if (params.category) query.set('category', params.category);
     if (params.page) query.set('page', String(params.page));
     if (params.limit) query.set('limit', String(params.limit));
@@ -219,6 +223,7 @@ export const adminApi = {
     params: {
       search?: string;
       status?: string;
+      priority?: string;
       category?: string;
       department?: string;
       dateRange?: string;
@@ -245,7 +250,20 @@ export const adminApi = {
       () => mockService.getComplaintById(id)
     ),
 
-  updateStatus: (id: string, payload: { status: string; remarks?: string }) =>
+  updatePriority: (id: string, payload: { priority: ComplaintPriority; remarks?: string }) =>
+    request<Complaint>(
+      `/admin/complaints/${id}/priority`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+      () => mockService.updatePriority(id, payload)
+    ),
+
+  updateStatus: (
+    id: string,
+    payload: { status: string; priority?: ComplaintPriority; remarks?: string }
+  ) =>
     request<Complaint>(
       `/admin/complaints/${id}/status`,
       {
@@ -257,7 +275,12 @@ export const adminApi = {
 
   assignComplaint: (
     id: string,
-    payload: { assignedDepartment: string; assignedStaff: string; remarks?: string }
+    payload: {
+      assignedDepartment: string;
+      assignedStaff: string;
+      priority?: ComplaintPriority;
+      remarks?: string;
+    }
   ) =>
     request<Complaint>(
       `/admin/complaints/${id}/assign`,
@@ -285,39 +308,128 @@ export const adminApi = {
     request<{
       categoryData: { category: string; count: number }[];
       statusData: { name: string; statusKey: string; value: number }[];
+      priorityData: { priority: ComplaintPriority; name: string; count: number }[];
       trendData: { date: string; submitted: number; resolved: number }[];
       totalInRange: number;
     }>(
       `/admin/analytics?timeRange=${timeRange}`,
       {},
-      () => mockService.getAnalytics()
+      () => mockService.getAnalytics(timeRange)
     ),
 
-  getReports: (params: { category?: string; dateRange?: string } = {}) => {
+  getReports: (params: { category?: string; priority?: string; dateRange?: string } = {}) => {
     const query = new URLSearchParams();
     if (params.category) query.set('category', params.category);
+    if (params.priority) query.set('priority', params.priority);
     if (params.dateRange) query.set('dateRange', params.dateRange);
 
     return request<{
       total: number;
       resolved: number;
+      assigned?: number;
       inProgress: number;
       pending: number;
+      priorityCounts?: { HIGH: number; MEDIUM: number; LOW: number };
       resolutionRate: number;
       avgResolutionDays: number;
     }>(
       `/admin/reports?${query.toString()}`,
       {},
-      () => mockService.getReports()
+      () => mockService.getReports(params)
     );
   },
 
-  exportCsvUrl: (params: { category?: string; status?: string; dateRange?: string } = {}) => {
+  exportCsvUrl: (
+    params: {
+      category?: string;
+      status?: string;
+      priority?: string;
+      department?: string;
+      search?: string;
+      dateRange?: string;
+    } = {}
+  ) => {
     const query = new URLSearchParams();
-    if (params.category) query.set('category', params.category);
-    if (params.status) query.set('status', params.status);
-    if (params.dateRange) query.set('dateRange', params.dateRange);
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== '') query.set(key, String(val));
+    });
     return `${API_BASE}/admin/reports/export?${query.toString()}`;
+  },
+
+  exportCsv: async (
+    params: {
+      category?: string;
+      status?: string;
+      priority?: string;
+      department?: string;
+      search?: string;
+      dateRange?: string;
+    } = {}
+  ) => {
+    const triggerDownload = (csvText: string) => {
+      const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `gram_panchayat_complaints_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    const isGitHubPages =
+      typeof window !== 'undefined' &&
+      window.location.hostname.endsWith('github.io') &&
+      !import.meta.env.VITE_API_URL;
+
+    if (isGitHubPages) {
+      const csvText = await mockService.exportCsv(params);
+      triggerDownload(csvText);
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const url = adminApi.exportCsvUrl(params);
+    try {
+      const res = await fetch(url, { headers });
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
+        const errData = await res.json();
+        throw new Error(errData.message || `Export failed (${res.status})`);
+      }
+
+      if (!res.ok) {
+        if (contentType.includes('text/html') || res.status >= 500) {
+          const csvText = await mockService.exportCsv(params);
+          triggerDownload(csvText);
+          return;
+        }
+        throw new Error(`Export failed (${res.status})`);
+      }
+
+      if (contentType.includes('text/html')) {
+        const csvText = await mockService.exportCsv(params);
+        triggerDownload(csvText);
+        return;
+      }
+
+      const csvText = await res.text();
+      triggerDownload(csvText);
+    } catch (err: any) {
+      if (err instanceof TypeError) {
+        const csvText = await mockService.exportCsv(params);
+        triggerDownload(csvText);
+        return;
+      }
+      throw err;
+    }
   },
 };
 

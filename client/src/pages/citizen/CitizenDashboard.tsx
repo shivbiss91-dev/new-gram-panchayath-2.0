@@ -20,6 +20,7 @@ import {
 import { Button } from '../../components/common/Button';
 import { StatCard } from '../../components/common/StatCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PriorityBadge } from '../../components/common/PriorityBadge';
 import { CategoryBadge } from '../../components/common/CategoryBadge';
 import { CardSkeleton, TableSkeleton } from '../../components/common/SkeletonLoader';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -218,6 +219,7 @@ export const CitizenDashboard: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider text-[11px]">
                   <th className="py-3 px-3">Complaint ID</th>
+                  <th className="py-3 px-3">Priority</th>
                   <th className="py-3 px-3">Category</th>
                   <th className="py-3 px-3">Issue Title</th>
                   <th className="py-3 px-3">Location</th>
@@ -231,6 +233,9 @@ export const CitizenDashboard: React.FC = () => {
                   <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-3 font-mono font-bold text-cyber-blue">
                       {c.complaintNumber}
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <PriorityBadge priority={c.priority} size="sm" />
                     </td>
                     <td className="py-3.5 px-3">
                       <CategoryBadge category={c.category} size="sm" />

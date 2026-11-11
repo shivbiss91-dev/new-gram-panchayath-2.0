@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { complaintApi } from '../../services/api';
-import { ComplaintCategory, Complaint } from '../../types';
+import { ComplaintCategory, Complaint, ComplaintPriority } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import {
   FileText,
@@ -14,11 +14,11 @@ import {
   Check,
   AlertCircle,
   ShieldCheck,
-  ExternalLink,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { FileUpload } from '../../components/common/FileUpload';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PriorityBadge } from '../../components/common/PriorityBadge';
 import { CategoryBadge } from '../../components/common/CategoryBadge';
 
 const CATEGORIES: ComplaintCategory[] = [
@@ -43,6 +43,7 @@ export const SubmitComplaintPage: React.FC = () => {
 
   // Form Fields
   const [category, setCategory] = useState<ComplaintCategory>(preselectedCategory);
+  const [priority, setPriority] = useState<ComplaintPriority>('MEDIUM');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
@@ -127,6 +128,7 @@ export const SubmitComplaintPage: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('category', category);
+      formData.append('priority', priority);
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('location', location.trim());
@@ -181,6 +183,10 @@ export const SubmitComplaintPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <span className="text-xs text-slate-400 font-bold uppercase">Category</span>
               <CategoryBadge category={submittedComplaint.category} size="sm" />
+            </div>
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+              <span className="text-xs text-slate-400 font-bold uppercase">Priority</span>
+              <PriorityBadge priority={submittedComplaint.priority} size="sm" showPriorityWord />
             </div>
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <span className="text-xs text-slate-400 font-bold uppercase">Issue Title</span>
@@ -297,6 +303,57 @@ export const SubmitComplaintPage: React.FC = () => {
                     >
                       <CategoryBadge category={cat} size="sm" />
                       {isSelected && <Check className="w-4 h-4 text-cyber-blue" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Priority selection */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">
+                Urgency / Priority Level *
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {(
+                  [
+                    {
+                      value: 'HIGH',
+                      label: 'High Priority',
+                      desc: 'Urgent safety hazard or essential outage',
+                      activeCls: 'bg-red-50 border-red-400 text-red-900 ring-1 ring-red-400',
+                    },
+                    {
+                      value: 'MEDIUM',
+                      label: 'Medium Priority',
+                      desc: 'Standard civic repair (Recommended default)',
+                      activeCls: 'bg-amber-50 border-amber-400 text-amber-900 ring-1 ring-amber-400',
+                    },
+                    {
+                      value: 'LOW',
+                      label: 'Low Priority',
+                      desc: 'Routine upkeep or minor maintenance',
+                      activeCls: 'bg-emerald-50 border-emerald-400 text-emerald-900 ring-1 ring-emerald-400',
+                    },
+                  ] as const
+                ).map((opt) => {
+                  const isSelected = priority === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPriority(opt.value)}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? opt.activeCls
+                          : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold">{opt.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                      <span className="text-[11px] opacity-80 block mt-1">{opt.desc}</span>
                     </button>
                   );
                 })}
@@ -441,6 +498,11 @@ export const SubmitComplaintPage: React.FC = () => {
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
                 <span className="text-xs font-bold text-slate-400 uppercase">Category</span>
                 <CategoryBadge category={category} size="md" />
+              </div>
+
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                <span className="text-xs font-bold text-slate-400 uppercase">Priority</span>
+                <PriorityBadge priority={priority} size="md" showPriorityWord />
               </div>
 
               <div className="border-b border-slate-200/60 pb-3">

@@ -5,8 +5,10 @@ interface StatCardProps {
   value: number | string;
   subtitle?: string;
   icon: React.ReactNode;
-  gradient?: 'cyan' | 'blue' | 'purple' | 'emerald' | 'amber';
+  gradient?: 'cyan' | 'blue' | 'purple' | 'emerald' | 'amber' | 'red';
   trend?: string;
+  interactive?: boolean;
+  className?: string;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -16,6 +18,8 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon,
   gradient = 'cyan',
   trend,
+  interactive = false,
+  className = '',
 }) => {
   const gradientBgs = {
     cyan: 'from-cyber-cyan/15 to-cyber-blue/15 text-cyber-blue border-cyber-cyan/25',
@@ -23,10 +27,15 @@ export const StatCard: React.FC<StatCardProps> = ({
     purple: 'from-cyber-purple/15 to-violet-500/15 text-cyber-purple border-cyber-purple/25',
     emerald: 'from-emerald-500/15 to-teal-500/15 text-emerald-600 border-emerald-500/25',
     amber: 'from-amber-500/15 to-orange-500/15 text-amber-600 border-amber-500/25',
+    red: 'from-red-500/15 to-rose-500/15 text-red-600 border-red-500/25',
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card hover:shadow-md transition-all duration-200">
+    <div
+      className={`bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card hover:shadow-md transition-all duration-200 ${
+        interactive ? 'hover:border-cyber-cyan cursor-pointer' : ''
+      } ${className}`}
+    >
       <div className="flex items-center justify-between gap-3 mb-3">
         <span className="text-sm font-semibold text-slate-500">{title}</span>
         <div

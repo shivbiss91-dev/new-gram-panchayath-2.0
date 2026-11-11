@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '../../services/api';
+import { ComplaintPriority } from '../../types';
 import {
   BarChart,
   Bar,
@@ -15,8 +16,9 @@ import {
   Line,
   CartesianGrid,
 } from 'recharts';
-import { BarChart3, TrendingUp, PieChart as PieIcon, Calendar, Info } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart as PieIcon, AlertTriangle, RotateCcw, Flag } from 'lucide-react';
 import { CardSkeleton } from '../../components/common/SkeletonLoader';
+import { Button } from '../../components/common/Button';
 
 const TIME_RANGES = [
   { label: 'Last 7 Days', value: '7d' },
@@ -35,33 +37,44 @@ const STATUS_COLORS: Record<string, string> = {
   REJECTED: '#EF4444', // Red
 };
 
+const PRIORITY_COLORS: Record<string, string> = {
+  HIGH: '#EF4444',
+  MEDIUM: '#F59E0B',
+  LOW: '#10B981',
+};
+
 export const AdminAnalyticsPage: React.FC = () => {
   const [timeRange, setTimeRange] = useState('30d');
   const [analyticsData, setAnalyticsData] = useState<{
     categoryData: { category: string; count: number }[];
     statusData: { name: string; statusKey: string; value: number }[];
+    priorityData?: { priority: ComplaintPriority; name: string; count: number }[];
     trendData: { date: string; submitted: number; resolved: number }[];
     totalInRange: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await adminApi.getAnalytics(timeRange);
       if (res.success && res.data) {
         setAnalyticsData(res.data);
+      } else {
+        setError(res.message || 'Unable to generate analytics data.');
       }
-    } catch (err) {
-      console.error('Analytics load error:', err);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load analytics data.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [timeRange]);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [timeRange]);
+  }, [fetchAnalytics]);
 
   return (
     <div className="space-y-6">
@@ -94,10 +107,28 @@ export const AdminAnalyticsPage: React.FC = () => {
         </div>
       </div>
 
-      {isLoading || !analyticsData ? (
+      {isLoading ? (
         <div className="space-y-6">
           <CardSkeleton count={2} />
           <div className="h-80 bg-white rounded-3xl animate-pulse" />
+        </div>
+      ) : error || !analyticsData ? (
+        <div className="rounded-3xl bg-rose-50 border border-rose-200 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-bold text-rose-900">Failed to Load Analytics</h3>
+              <p className="text-xs text-rose-700 mt-0.5">{error || 'No analytics available.'}</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={fetchAnalytics}
+            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+          >
+            Retry
+          </Button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -163,12 +194,14 @@ export const AdminAnalyticsPage: React.FC = () => {
                       dataKey="value"
                       nameKey="name"
                     >
-                      {analyticsData.statusData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={STATUS_COLORS[entry.statusKey] || '#94A3B8'}
-                        />
-                      ))}
+                      {analyticsData.statusData
+                        .filter((s) => s.value > 0)
+                        .map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={STATUS_COLORS[entry.statusKey] || '#94A3B8'}
+                          />
+                        ))}
                     </Pie>
                     <Tooltip
                       contentStyle={{
@@ -189,50 +222,95 @@ export const AdminAnalyticsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 3. Line Chart: Complaint Trend Over Time */}
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-card space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-500" />
-                <h3 className="text-sm font-bold text-slate-900">
-                  Grievance Inflow vs. Resolution Trend
-                </h3>
-              </div>
-              <span className="text-[11px] text-slate-400">Daily Timeline</span>
-            </div>
+          {/* Priority Distribution & Trend Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Priority Breakdown Bar Chart */}
+            {analyticsData.priorityData && (
+              <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-card space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Flag className="w-5 h-5 text-red-500" />
+                    <h3 className="text-sm font-bold text-slate-900">Priority Distribution</h3>
+                  </div>
+                  <span className="text-[11px] text-slate-400">Urgency Levels</span>
+                </div>
 
-            <div className="h-72 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analyticsData.trendData} margin={{ top: 10, right: 20, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748B' }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: '12px',
-                      border: '1px solid #E2E8F0',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  <Line
-                    type="monotone"
-                    dataKey="submitted"
-                    stroke="#1687FF"
-                    strokeWidth={2.5}
-                    name="Submitted"
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="resolved"
-                    stroke="#10B981"
-                    strokeWidth={2.5}
-                    name="Resolved"
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                <div className="h-72 w-full pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analyticsData.priorityData} margin={{ top: 10, right: 16, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#334155', fontWeight: 600 }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748B' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '12px',
+                          border: '1px solid #E2E8F0',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Bar dataKey="count" radius={[8, 8, 0, 0]} name="Complaints">
+                        {analyticsData.priorityData.map((entry, idx) => (
+                          <Cell
+                            key={`p-cell-${idx}`}
+                            fill={PRIORITY_COLORS[entry.priority] || '#F59E0B'}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Line Chart: Complaint Trend Over Time */}
+            <div
+              className={`${
+                analyticsData.priorityData ? 'lg:col-span-7' : 'lg:col-span-12'
+              } bg-white rounded-3xl border border-slate-200/80 p-6 shadow-card space-y-4`}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-500" />
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Grievance Inflow vs. Resolution Trend
+                  </h3>
+                </div>
+                <span className="text-[11px] text-slate-400">Daily Timeline</span>
+              </div>
+
+              <div className="h-72 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analyticsData.trendData} margin={{ top: 10, right: 20, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748B' }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: '12px',
+                        border: '1px solid #E2E8F0',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="submitted"
+                      stroke="#1687FF"
+                      strokeWidth={2.5}
+                      name="Submitted"
+                      dot={{ r: 3 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="resolved"
+                      stroke="#10B981"
+                      strokeWidth={2.5}
+                      name="Resolved"
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>

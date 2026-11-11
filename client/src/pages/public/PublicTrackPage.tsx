@@ -5,7 +5,9 @@ import { Complaint } from '../../types';
 import { Search, MapPin, Calendar, Building, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PriorityBadge } from '../../components/common/PriorityBadge';
 import { CategoryBadge } from '../../components/common/CategoryBadge';
+import { resolveComplaintImageUrl } from '../../utils/media';
 import { Timeline } from '../../components/common/Timeline';
 
 export const PublicTrackPage: React.FC = () => {
@@ -119,6 +121,7 @@ export const PublicTrackPage: React.FC = () => {
                 <span className="font-mono text-lg font-extrabold text-cyber-blue bg-cyan-50 px-3 py-1 rounded-xl border border-cyan-100">
                   {complaint.complaintNumber}
                 </span>
+                <PriorityBadge priority={complaint.priority} size="md" showPriorityWord />
                 <StatusBadge status={complaint.status} size="md" />
                 <CategoryBadge category={complaint.category} />
               </div>
@@ -188,7 +191,7 @@ export const PublicTrackPage: React.FC = () => {
               <h4 className="text-xs font-bold uppercase text-slate-400 mb-2">Attached Photographic Evidence</h4>
               <div className="w-48 h-36 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
                 <img
-                  src={complaint.imageUrl}
+                  src={resolveComplaintImageUrl(complaint.imageUrl) || ''}
                   alt="Complaint evidence"
                   className="w-full h-full object-cover"
                 />

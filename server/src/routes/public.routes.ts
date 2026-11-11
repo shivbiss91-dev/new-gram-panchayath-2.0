@@ -86,6 +86,7 @@ router.get('/track/:complaintNumber', async (req: Request, res: Response): Promi
         description: complaint.description,
         location: complaint.location,
         imageUrl: complaint.imageUrl,
+        priority: complaint.priority,
         status: complaint.status,
         assignedDepartment: complaint.assignedDepartment,
         submittedAt: complaint.submittedAt,
